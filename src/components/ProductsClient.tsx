@@ -11,14 +11,17 @@ import {
 	deleteProductAction,
 } from '@/actions/product.actions';
 import { useProductsStore } from '@/store/useProductsStore';
-import type { GetProductsResponse, IProduct } from '@/lib/api';
+import type { GetProductsResponse, ProductFormData } from '@/lib/schemas';
+import type { UserRole } from '@/lib/schemas';
 
 const LIMIT = 10;
 
 export function ProductsClient({
 	initialData,
+	role,
 }: {
 	initialData: GetProductsResponse;
+	role?: UserRole;
 }) {
 	const {
 		products,
@@ -42,6 +45,8 @@ export function ProductsClient({
 	const [isCreating, setIsCreating] = useState(false);
 	const isFirstRender = useRef(true);
 
+	const canCreate = role === 'user' || role === 'admin';
+
 	useEffect(() => {
 		init(initialData);
 	}, [initialData, init]);
@@ -54,44 +59,42 @@ export function ProductsClient({
 		fetchPage({ limit: LIMIT, skip, q: searchQuery });
 	}, [skip, searchQuery, fetchPage]);
 
-	const handleCreate = async (data: Omit<IProduct, 'id'>) => {
+	const handleCreate = async (data: ProductFormData) => {
 		setMutating(true);
 		setError(null);
-		try {
-			const created = await createProductAction(data);
-			addProduct({ ...data, ...created });
+		const res = await createProductAction(data);
+		if (res.ok) {
+			addProduct(res.data);
 			setIsCreating(false);
-		} catch {
-			setError('Не удалось создать товар');
-		} finally {
-			setMutating(false);
+		} else {
+			setError(res.error);
 		}
+		setMutating(false);
 	};
 
-	const handleUpdate = async (updated: IProduct) => {
+	const handleUpdate = async (updated: ProductFormData & { id: number }) => {
 		setMutating(true);
 		setError(null);
-		try {
-			const saved = await updateProductAction(updated);
-			updateProduct(saved);
-		} catch {
-			setError('Не удалось обновить товар');
-		} finally {
-			setMutating(false);
+		const { id, ...data } = updated;
+		const res = await updateProductAction(id, data);
+		if (res.ok) {
+			updateProduct(res.data);
+		} else {
+			setError(res.error);
 		}
+		setMutating(false);
 	};
 
 	const handleDelete = async (id: number) => {
 		setMutating(true);
 		setError(null);
-		try {
-			await deleteProductAction(id);
+		const res = await deleteProductAction(id);
+		if (res.ok) {
 			removeProduct(id);
-		} catch {
-			setError('Не удалось удалить товар');
-		} finally {
-			setMutating(false);
+		} else {
+			setError(res.error);
 		}
+		setMutating(false);
 	};
 
 	const displayedProducts =
@@ -103,13 +106,15 @@ export function ProductsClient({
 		<div className="space-y-5">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<SearchInput disabled={loading} onSearch={setSearchQuery} />
-				<button
-					type="button"
-					onClick={() => setIsCreating(prev => !prev)}
-					className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700"
-				>
-					{isCreating ? 'Закрыть' : '+ Добавить товар'}
-				</button>
+				{canCreate && (
+					<button
+						type="button"
+						onClick={() => setIsCreating(prev => !prev)}
+						className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700"
+					>
+						{isCreating ? 'Закрыть' : '+ Добавить товар'}
+					</button>
+				)}
 			</div>
 
 			{isMutating && (
@@ -137,6 +142,7 @@ export function ProductsClient({
 						<Product
 							key={product.id}
 							product={product}
+							role={role}
 							disabled={isMutating}
 							onSave={handleUpdate}
 							onDelete={handleDelete}

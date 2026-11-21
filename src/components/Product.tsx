@@ -1,22 +1,30 @@
-'use client';
-
 import { useState } from 'react';
 import Link from 'next/link';
-import type { IProduct } from '@/lib/api';
+import type { IProduct, UserRole } from '@/lib/schemas';
 import { ProductForm } from './ProductForm';
 
 interface ProductProps {
 	product: IProduct;
+	role?: UserRole;
 	disabled?: boolean;
 	onSave: (product: IProduct) => void;
 	onDelete: (id: number) => void;
 }
 
-export function Product({ product, disabled, onSave, onDelete }: ProductProps) {
+export function Product({
+	product,
+	role,
+	disabled,
+	onSave,
+	onDelete,
+}: ProductProps) {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
 
-	if (isEditing) {
+	const canEdit = role === 'user' || role === 'admin';
+	const canDelete = role === 'admin';
+
+	if (isEditing && canEdit) {
 		return (
 			<ProductForm
 				initialData={product}
@@ -54,7 +62,7 @@ export function Product({ product, disabled, onSave, onDelete }: ProductProps) {
 					>
 						{isExpanded ? 'Свернуть' : 'Открыть'}
 					</button>
-					{!isExpanded && (
+					{!isExpanded && canDelete && (
 						<button
 							type="button"
 							disabled={disabled}
@@ -83,24 +91,30 @@ export function Product({ product, disabled, onSave, onDelete }: ProductProps) {
 						</span>
 					</div>
 
-					<div className="flex justify-end gap-3 border-t pt-2.5">
-						<button
-							type="button"
-							disabled={disabled}
-							onClick={() => setIsEditing(true)}
-							className="text-blue-600 hover:underline disabled:opacity-40"
-						>
-							Редактировать
-						</button>
-						<button
-							type="button"
-							disabled={disabled}
-							onClick={() => onDelete(product.id)}
-							className="text-red-600 hover:underline disabled:opacity-40"
-						>
-							Удалить
-						</button>
-					</div>
+					{(canEdit || canDelete) && (
+						<div className="flex justify-end gap-3 border-t pt-2.5">
+							{canEdit && (
+								<button
+									type="button"
+									disabled={disabled}
+									onClick={() => setIsEditing(true)}
+									className="text-blue-600 hover:underline disabled:opacity-40"
+								>
+									Редактировать
+								</button>
+							)}
+							{canDelete && (
+								<button
+									type="button"
+									disabled={disabled}
+									onClick={() => onDelete(product.id)}
+									className="text-red-600 hover:underline disabled:opacity-40"
+								>
+									Удалить
+								</button>
+							)}
+						</div>
+					)}
 				</div>
 			)}
 		</div>

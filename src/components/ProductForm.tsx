@@ -1,9 +1,7 @@
 'use client';
 
-import { IProduct } from '@/lib/api';
 import { useState } from 'react';
-
-type ProductFormData = Omit<IProduct, 'id'>;
+import { productFormSchema, type ProductFormData } from '@/lib/schemas';
 
 interface ProductFormProps {
 	initialData?: ProductFormData;
@@ -30,76 +28,105 @@ export function ProductForm({
 	onCancel,
 }: ProductFormProps) {
 	const [form, setForm] = useState<ProductFormData>(initialData);
+	const [errors, setErrors] = useState<Record<string, string[]>>({});
 
 	const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = e => {
 		e.preventDefault();
-		onSubmit(form);
+		const parsed = productFormSchema.safeParse(form);
+		if (!parsed.success) {
+			setErrors(parsed.error.flatten().fieldErrors as Record<string, string[]>);
+			return;
+		}
+		setErrors({});
+		onSubmit(parsed.data);
 	};
 
 	return (
 		<form
 			onSubmit={handleSubmit}
+			noValidate
 			className="space-y-3 rounded-lg border border-blue-400 bg-white p-4 text-sm"
 		>
-			<input
-				required
-				disabled={disabled}
-				value={form.title}
-				onChange={e => setForm({ ...form, title: e.target.value })}
-				placeholder="Название"
-				className="w-full"
-			/>
-			<textarea
-				required
-				disabled={disabled}
-				value={form.description}
-				onChange={e =>
-					setForm({ ...form, description: e.target.value })
-				}
-				placeholder="Описание"
-				className="w-full"
-			/>
-			<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+			<div>
 				<input
-					required
 					disabled={disabled}
-					value={form.category}
-					onChange={e =>
-						setForm({ ...form, category: e.target.value })
-					}
-					placeholder="Категория"
+					value={form.title}
+					onChange={e => setForm({ ...form, title: e.target.value })}
+					placeholder="Название"
+					className="w-full"
 				/>
-				<input
-					required
-					disabled={disabled}
-					type="number"
-					step="0.01"
-					value={form.price || ''}
-					onChange={e => setForm({ ...form, price: +e.target.value })}
-					placeholder="Цена"
-				/>
-				<input
-					required
-					disabled={disabled}
-					type="number"
-					value={form.stock || ''}
-					onChange={e => setForm({ ...form, stock: +e.target.value })}
-					placeholder="Остаток"
-				/>
-				<input
-					required
-					disabled={disabled}
-					type="number"
-					step="0.1"
-					min="0"
-					max="5"
-					value={form.rating}
-					onChange={e =>
-						setForm({ ...form, rating: +e.target.value })
-					}
-					placeholder="Рейтинг"
-				/>
+				{errors.title && (
+					<p className="mt-1 text-xs text-red-600">{errors.title[0]}</p>
+				)}
 			</div>
+
+			<div>
+				<textarea
+					disabled={disabled}
+					value={form.description}
+					onChange={e => setForm({ ...form, description: e.target.value })}
+					placeholder="Описание"
+					className="w-full"
+				/>
+				{errors.description && (
+					<p className="mt-1 text-xs text-red-600">{errors.description[0]}</p>
+				)}
+			</div>
+
+			<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+				<div>
+					<input
+						disabled={disabled}
+						value={form.category}
+						onChange={e => setForm({ ...form, category: e.target.value })}
+						placeholder="Категория"
+					/>
+					{errors.category && (
+						<p className="mt-1 text-xs text-red-600">{errors.category[0]}</p>
+					)}
+				</div>
+				<div>
+					<input
+						disabled={disabled}
+						type="number"
+						step="0.01"
+						value={form.price || ''}
+						onChange={e => setForm({ ...form, price: +e.target.value })}
+						placeholder="Цена"
+					/>
+					{errors.price && (
+						<p className="mt-1 text-xs text-red-600">{errors.price[0]}</p>
+					)}
+				</div>
+				<div>
+					<input
+						disabled={disabled}
+						type="number"
+						value={form.stock || ''}
+						onChange={e => setForm({ ...form, stock: +e.target.value })}
+						placeholder="Остаток"
+					/>
+					{errors.stock && (
+						<p className="mt-1 text-xs text-red-600">{errors.stock[0]}</p>
+					)}
+				</div>
+				<div>
+					<input
+						disabled={disabled}
+						type="number"
+						step="0.1"
+						min="0"
+						max="5"
+						value={form.rating}
+						onChange={e => setForm({ ...form, rating: +e.target.value })}
+						placeholder="Рейтинг"
+					/>
+					{errors.rating && (
+						<p className="mt-1 text-xs text-red-600">{errors.rating[0]}</p>
+					)}
+				</div>
+			</div>
+
 			<div className="flex justify-end gap-2">
 				{onCancel && (
 					<button

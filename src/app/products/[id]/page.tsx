@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getProductById, type IProduct } from '@/lib/api';
+import { getProductById } from '@/lib/api';
 
 export default async function ProductPage({
 	params,
@@ -8,11 +8,9 @@ export default async function ProductPage({
 	params: Promise<{ id: string }>;
 }) {
 	const { id } = await params;
-	const product: IProduct & { message?: string } = await getProductById(
-		Number(id)
-	);
+	const product = await getProductById(Number(id));
 
-	if (!product || product.message) {
+	if (!product) {
 		notFound();
 	}
 

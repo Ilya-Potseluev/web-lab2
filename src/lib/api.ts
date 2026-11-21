@@ -1,14 +1,14 @@
 import 'server-only';
 
-export interface IProduct {
-	id: number;
-	title: string;
-	description: string;
-	category: string;
-	price: number;
-	stock: number;
-	rating: number;
-}
+export type { IProduct, GetProductsResponse, ProductFormData } from './schemas';
+
+import {
+	getProductsResponseSchema,
+	productSchema,
+	type GetProductsResponse,
+	type IProduct,
+	type ProductFormData,
+} from './schemas';
 
 const selectedFields = [
 	'title',
@@ -17,62 +17,61 @@ const selectedFields = [
 	'price',
 	'stock',
 	'rating',
-] satisfies (keyof IProduct)[];
-
-export interface GetProductsResponse {
-	products: IProduct[];
-	total: number;
-	skip: number;
-	limit: number;
-}
+];
 
 export interface GetProductsParams {
 	limit?: number;
 	skip?: number;
 	q?: string;
 }
+
 export async function getProducts(
 	params: GetProductsParams
 ): Promise<GetProductsResponse> {
-	let param = params.q ? '/search' : '';
-	return fetchJson(
-		`https://dummyjson.com/products${param}?` +
-			new URLSearchParams({
-				...params,
-				select: selectedFields.join(','),
-			} as Record<string, any>) // as используется потому что URLSearchParams прекрасно себе сам конвертирует number в string
-		// ?limit=10&skip=10&select='
+	const param = params.q ? '/search' : '';
+	const search = new URLSearchParams({
+		limit: String(params.limit ?? 10),
+		skip: String(params.skip ?? 0),
+		select: selectedFields.join(','),
+		...(params.q ? { q: params.q } : {}),
+	});
+	const raw = await fetchJson(
+		`https://dummyjson.com/products${param}?${search}`
 	);
+	return getProductsResponseSchema.parse(raw);
 }
 
-export async function getProductById(id: number) {
-	return fetchJson(
+export async function getProductById(id: number): Promise<IProduct> {
+	const raw = await fetchJson(
 		`https://dummyjson.com/products/${id}?` +
 			new URLSearchParams({ select: selectedFields.join(',') })
 	);
+	return productSchema.parse(raw);
 }
 
 export async function updateProductById(
 	id: number,
-	fields: Partial<Omit<IProduct, 'id'>>
+	fields: Partial<ProductFormData>
 ): Promise<IProduct> {
-	return fetchJson(
+	const raw = await fetchJson(
 		`https://dummyjson.com/products/${id}?` +
 			new URLSearchParams({ select: selectedFields.join(',') }),
 		'PUT',
 		fields
 	);
+	return productSchema.parse(raw);
 }
 
 export async function createProduct(
-	fields: Omit<IProduct, 'id'>
+	fields: ProductFormData
 ): Promise<IProduct> {
-	return fetchJson(
+	const raw = await fetchJson(
 		`https://dummyjson.com/products/add?` +
 			new URLSearchParams({ select: selectedFields.join(',') }),
 		'POST',
 		fields
 	);
+	return productSchema.parse(raw);
 }
 
 export async function deleteProductById(
@@ -88,10 +87,10 @@ export async function deleteProductById(
 async function fetchJson(
 	url: string,
 	method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
-	body?: Record<string, any>
+	body?: Record<string, unknown>
 ) {
-	return fetch(url, {
-		method: method,
+	const res = await fetch(url, {
+		method,
 		next:
 			method === 'GET'
 				? { revalidate: 60, tags: ['products'] }
@@ -102,5 +101,8 @@ async function fetchJson(
 					headers: { 'Content-Type': 'application/json' },
 				}
 			: {}),
-	}).then(res => res.json());
+	});
+
+	if (!res.ok) throw new Error(`Ошибка API: ${res.status}`);
+	return res.json();
 }

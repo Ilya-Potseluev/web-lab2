@@ -1,14 +1,23 @@
 import { getProducts } from '@/lib/api';
-import { NextResponse, NextRequest } from 'next/server';
+import { searchParamsSchema } from '@/lib/schemas';
+import { NextResponse, type NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
-	try {
-		const { searchParams } = request.nextUrl;
-		const limit = Number(searchParams.get('limit') ?? 10);
-		const skip = Number(searchParams.get('skip') ?? 0);
-		const q = searchParams.get('q') ?? '';
+	const parsed = searchParamsSchema.safeParse({
+		limit: request.nextUrl.searchParams.get('limit') ?? undefined,
+		skip: request.nextUrl.searchParams.get('skip') ?? undefined,
+		q: request.nextUrl.searchParams.get('q') ?? undefined,
+	});
 
-		const data = await getProducts({ limit, skip, q });
+	if (!parsed.success) {
+		return NextResponse.json(
+			{ message: 'Некорректные параметры запроса' },
+			{ status: 400 }
+		);
+	}
+
+	try {
+		const data = await getProducts(parsed.data);
 		return NextResponse.json(data);
 	} catch (error) {
 		return NextResponse.json(
